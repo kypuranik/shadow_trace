@@ -1,0 +1,5 @@
+streamlit>=1.30
+pandas>=1.5
+numpy>=1.23
+pymysql>=1.0
+sqlalchemy>=1.4
