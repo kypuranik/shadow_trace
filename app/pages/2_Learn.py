@@ -154,9 +154,14 @@ else:
 # ==============================
 st.subheader(f"📌 {selected_attack}")
 
-st.write(f"📖 **Description:** {data['desc']}")
-st.write(f"⚠️ **Risk Level:** {data['risk']}")
-st.write(f"🛡️ **Prevention:** {data['prevention']}")
+st.markdown(f"""
+<div class="glass">
+<h3>{selected_attack}</h3>
+<p><b>Description:</b> {data['desc']}</p>
+<p><b>Risk:</b> {data['risk']}</p>
+<p><b>Prevention:</b> {data['prevention']}</p>
+</div>
+""", unsafe_allow_html=True)
 
 if data["link"]:
     st.write(f"🔗 **External Resource:** [Learn More]({data['link']})")

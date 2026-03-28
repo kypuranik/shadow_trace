@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import sys, os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from ui import apply_ui
-from db import load_full_data, get_main_table, get_basic_stats
+from db import load_full_data, get_main_table
 
 apply_ui()
 
@@ -20,12 +21,18 @@ if st.button("🔄 Refresh Data"):
     st.rerun()
 
 # =========================
-# ⚡ DATA SOURCE SWITCH
+# ⚡ DATA SOURCE SWITCH (FINAL LOGIC)
 # =========================
+has_sim = "sim_data" in st.session_state and not st.session_state.sim_data.empty
+has_upload = "uploaded_data" in st.session_state and not st.session_state.uploaded_data.empty
+
 use_simulation = False
 
-if "sim_data" in st.session_state and not st.session_state.sim_data.empty:
-    use_simulation = st.checkbox("⚡ Use Simulation / Uploaded Data")
+if has_sim or has_upload:
+    use_simulation = st.checkbox(
+        "⚡ Use Simulation / Uploaded Data",
+        help="Switch between database and simulation/uploaded data"
+    )
 
 # =========================
 # 📂 LOAD DATA
@@ -37,8 +44,19 @@ if table_name is None:
     st.stop()
 
 if use_simulation:
-    df = st.session_state.sim_data.copy()
-    st.success("🟢 Using Simulation Data")
+
+    if has_upload:
+        df = st.session_state.uploaded_data.copy()
+        st.success("🟢 Using Uploaded Dataset")
+
+    elif has_sim:
+        df = st.session_state.sim_data.copy()
+        st.success("🟢 Using Live Simulation Data")
+
+    else:
+        df = load_full_data()
+        st.info("🔵 Fallback to Database")
+
 else:
     df = load_full_data()
     st.info(f"🔵 Using Database Table: {table_name}")
@@ -49,15 +67,6 @@ else:
 if df is None or df.empty:
     st.error("❌ No data available")
     st.stop()
-
-# =========================
-# 📊 TOTAL ROWS
-# =========================
-if use_simulation:
-    total_rows = len(df)
-else:
-    stats = get_basic_stats()
-    total_rows = stats.get("total_rows", len(df))
 
 # =========================
 # 🔍 COLUMN DETECTION
@@ -80,27 +89,15 @@ if traffic_col is None:
     st.stop()
 
 # =========================
-# 🎚️ SCALED SLIDER
+# 🎚️ FILTER
 # =========================
-actual_max = int(df[traffic_col].max())
-UI_MAX = 200000
-
-scale = UI_MAX / actual_max if actual_max > 0 else 1
-
-threshold_ui = st.slider(
-    "🚦 Filter by Traffic Intensity (Packets/sec)",
+threshold = st.slider(
+    "🚦 Traffic Threshold",
     0,
-    UI_MAX,
-    int(UI_MAX * 0.3)
+    int(df[traffic_col].max()),
+    int(df[traffic_col].mean())
 )
 
-threshold = threshold_ui / scale
-
-st.caption(f"Actual threshold: {int(threshold)} packets/sec")
-
-# =========================
-# 🔎 FILTER
-# =========================
 df_filtered = df[df[traffic_col] > threshold]
 
 # =========================
@@ -108,36 +105,94 @@ df_filtered = df[df[traffic_col] > threshold]
 # =========================
 col1, col2, col3 = st.columns(3)
 
-col1.metric("📦 Total Flows", f"{total_rows:,}")
+col1.metric("📦 Total Flows", f"{len(df):,}")
 col2.metric("🔥 High Traffic Flows", len(df_filtered))
 
-if attack_col and not df_filtered.empty:
-    top_attack = df_filtered[attack_col].mode()[0]
-else:
-    top_attack = "N/A"
+top_attack = (
+    df_filtered[attack_col].mode()[0]
+    if attack_col and not df_filtered.empty
+    else "N/A"
+)
 
 col3.metric("⚠️ Dominant Attack", top_attack)
 
-
 # =========================
-# 📊 ATTACK DISTRIBUTION (TOP 5)
+# 📊 ATTACK DISTRIBUTION (LOG SCALE)
 # =========================
-st.subheader("🚨 Attack Distribution (Filtered by Traffic)")
+st.subheader("🚨 Attack Distribution (Log Scale - Balanced View)")
 
 if attack_col and not df_filtered.empty:
 
-    attack_counts = df_filtered[attack_col].value_counts()
+    attack_counts = df_filtered[attack_col].value_counts().reset_index()
+    attack_counts.columns = ["Attack Type", "Count"]
 
-    # take top 5 attacks
-    top_n = attack_counts.head(5)
+    # BAR CHART
+    fig = px.bar(
+        attack_counts,
+        x="Attack Type",
+        y="Count",
+        color="Count"
+    )
 
-    # fallback if only 1 category
-    if len(top_n) <= 1:
-        st.warning("⚠️ Filter too strict — showing overall distribution")
-        attack_counts = df[attack_col].value_counts().head(5)
-        top_n = attack_counts
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#f8fafc"),
 
-    st.bar_chart(top_n)
+        title=dict(
+            text="Attack Distribution (Log Scale)",
+            font=dict(size=20, color="#ffffff"),
+            x=0.02
+        ),
+
+        xaxis=dict(
+            title="Attack Type",
+            title_font=dict(color="#e2e8f0"),
+            tickfont=dict(color="#cbd5f5"),
+            gridcolor="rgba(255,255,255,0.1)"
+        ),
+
+        yaxis=dict(
+            title="Count (Log Scale)",
+            title_font=dict(color="#e2e8f0"),
+            tickfont=dict(color="#cbd5f5"),
+            gridcolor="rgba(255,255,255,0.1)",
+            type="log"
+        ),
+
+        legend=dict(font=dict(color="#f8fafc")),
+        margin=dict(t=60, l=20, r=20, b=20)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # PIE CHART
+    top_attacks = attack_counts.head(6)
+
+    fig2 = px.pie(
+        top_attacks,
+        names="Attack Type",
+        values="Count"
+    )
+
+    fig2.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#f8fafc"),
+
+        title=dict(
+            text="Top Attack Share",
+            font=dict(size=20, color="#ffffff"),
+            x=0.02
+        ),
+
+        legend=dict(font=dict(color="#f8fafc"))
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
+
+    st.info("⚖️ Dataset is highly imbalanced — log scale used to reveal smaller attack patterns")
 
 else:
     st.info("No attack data available")
@@ -159,10 +214,10 @@ if attack_col:
     st.dataframe(summary)
 
 # =========================
-# 🧠 INSIGHT BOX
+# 🧠 INSIGHT
 # =========================
 st.markdown("### 🧠 Key Insight")
 
 st.success(
-    f"{top_attack} is the most dominant attack when traffic exceeds {int(threshold)} packets/sec."
+    f"{top_attack} is the most dominant attack above threshold {int(threshold)} packets/sec."
 )
