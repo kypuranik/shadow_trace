@@ -1,13 +1,13 @@
 # ⚡ ShadowTrace: Network Traffic Analysis & Attack Detection
 
-ShadowTrace is an interactive system for analyzing network traffic, detecting attack patterns, and simulating real-time anomalies using a combination of **DBMS concepts, NLP querying, and live simulation**.
+ShadowTrace is a hybrid **OLTP + OLAP intelligent network traffic analysis system** that combines real-time simulation, adaptive query processing, and natural language querying to detect and analyze cyber attack patterns.
 
 ---
 
 ## 📌 Key Highlights
 
 * 📊 Real-time traffic simulation with anomaly detection
-* 🧠 Natural Language → SQL query system
+* 🧠 Natural Language → SQL query system with smart OLAP or OLTP intelligence
 * 🗄️ MySQL database with optimized schema & indexing
 * ⚡ OLTP + OLAP (Star Schema) integration
 * 📈 Interactive dashboard for traffic insights
@@ -84,6 +84,15 @@ pip install -r requirements.txt
 
 ---
 
+## ✨ Unique Capabilities
+
+* ⚡ Adaptive Query Engine (Automatically switches between OLTP and OLAP)
+* 🧠 Explainable Query System (Shows why a query uses OLAP vs OLTP)
+* ⚖️ Imbalanced Data Handling (Log-scale visualization for minority attacks)
+* 🔄 Multi-source Data Engine (Database + Simulation + Uploaded CSV)
+
+---
+
 ## 🚀 Features
 
 ### 📊 Dashboard
@@ -95,7 +104,8 @@ pip install -r requirements.txt
 ### ⚡ Live Simulation
 
 * Generates real-time traffic data
-* Detects high packet rate anomalies (DDoS simulation)
+* Upload CSV files for custom traffic analysis
+* Detects high packet rate anomalies 
 * Adjustable simulation speed
 
 ### 💬 NLP Query System
@@ -111,8 +121,32 @@ pip install -r requirements.txt
 * Explains attack types
 * Shows risk levels and prevention methods
 
+## ⚖️ Handling Imbalanced Data
+
+The dataset is highly skewed toward BENIGN traffic.  
+To ensure visibility of minority attack classes, logarithmic scaling is used in visualizations.
+
+This enables meaningful analysis of rare but critical attack patterns.
+
 ---
 
+## ⚡ Adaptive Query Engine
+
+The system intelligently determines whether a query should be executed on:
+
+* **OLTP (Transactional DB)** → for raw data queries  
+* **OLAP (Data Warehouse)** → for analytical queries  
+
+### Example:
+
+| User Query | Mode |
+|----------|------|
+| "Show all flows" | OLTP |
+| "Attack distribution" | OLAP |
+
+This improves performance and mimics real-world data systems.
+
+---
 ## 🧠 Database Design
 
 ### 🔹 OLTP (Transactional)
@@ -129,17 +163,15 @@ pip install -r requirements.txt
 
 ---
 
-## ⚡ DBMS Concepts Used
+## ⚡ Core DBMS Implementation
 
-* Relational Schema Design
-* Normalization (3NF)
-* Primary & Foreign Keys
-* Indexing (Single + Composite)
-* Query Optimization (EXPLAIN)
-* Views
-* Stored Procedures
-* Star Schema (OLAP)
-* Aggregation & Joins
+* Hybrid OLTP + OLAP Architecture
+* Star Schema Design for Analytical Queries
+* Query Routing based on Intent Detection
+* Indexed Query Optimization (Single + Composite)
+* Materialized Views for Aggregation
+* Stored Procedures for Reusable Logic
+* Execution Plan Analysis (EXPLAIN)
 
 ---
 
@@ -162,7 +194,7 @@ https://drive.google.com/drive/folders/1ghUgOM6Sz9Y5HP9vi60ip2JfVF-NolU1?usp=sha
 After downloading, place the files inside:
 `dataset/`
 
-Dataset source: CICIDS2017 (real-world network traffic dataset)
+Dataset Source: CICIDS2017 (real-world intrusion detection dataset)
 
 ---
 
@@ -176,6 +208,7 @@ shadow_trace/
 │   ├── db.py
 │   ├── load_flows.py
 │   ├── query_mapper.py
+│   ├── ui.py
 │   └── pages/
 │
 ├── dataset/
@@ -234,6 +267,15 @@ streamlit run app.py
 * Implemented real-time traffic simulation with anomaly detection
 * Built NLP-based query interface converting natural language to SQL
 * Optimized queries using indexes and execution plan analysis
+
+---
+
+## 📈 Key Contributions
+
+* Built a hybrid database system combining OLTP and OLAP
+* Implemented adaptive query routing based on user intent
+* Designed a real-time traffic simulation engine
+* Enabled natural language querying over structured data
 
 ---
 
