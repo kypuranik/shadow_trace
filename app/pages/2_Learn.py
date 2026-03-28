@@ -1,7 +1,17 @@
-import streamlit as st
+import streamlit as st   
+
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from ui import apply_ui
+apply_ui()
+
 from db import fetch_data
 
-st.title("🧠 Cyber Attack Education")
+from ui import apply_ui
+apply_ui()
+
+st.title("Cyber Attack Education")
 st.markdown("Understand network threats in a simple, structured way.")
 
 # ==============================

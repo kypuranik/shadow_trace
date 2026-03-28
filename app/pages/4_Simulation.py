@@ -3,94 +3,104 @@ import pandas as pd
 import numpy as np
 import time
 
-st.title("⚡ Live Traffic Simulation")
-st.markdown("Monitoring real-time packet flow and detecting anomalies.")
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from ui import apply_ui
+apply_ui()
+
+st.title("Traffic Simulation & Analysis")
 
 # =========================
-# INIT SESSION STATE
+# 📂 UPLOAD DATASET
 # =========================
-if 'sim_data' not in st.session_state:
+st.subheader("Upload Dataset")
+
+uploaded_file = st.file_uploader("Drag and drop CSV file", type=["csv"])
+
+if uploaded_file is not None:
+    df_upload = pd.read_csv(uploaded_file)
+
+    st.success("File uploaded successfully")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Rows", len(df_upload))
+    col2.metric("Columns", len(df_upload.columns))
+    col3.metric("Missing", df_upload.isna().sum().sum())
+
+    # Safe charts
+    if "flow_packets_per_sec" in df_upload.columns:
+        st.line_chart(df_upload["flow_packets_per_sec"])
+
+    if "attack_name" in df_upload.columns:
+        st.bar_chart(df_upload["attack_name"].value_counts())
+
+    # Save uploaded data
+    st.session_state.uploaded_data = df_upload
+
+
+# =========================
+# 🧠 SESSION STATE INIT
+# =========================
+if "running" not in st.session_state:
+    st.session_state.running = False
+
+if "tick" not in st.session_state:
+    st.session_state.tick = 0
+
+if "sim_data" not in st.session_state:
     st.session_state.sim_data = pd.DataFrame(columns=[
         "time", "flow_packets_per_sec", "attack_name"
     ])
 
-if 'running' not in st.session_state:
-    st.session_state.running = False
-
-if 'tick' not in st.session_state:
-    st.session_state.tick = 0
-
-# Persistent checkbox state
 if "show_all_data" not in st.session_state:
     st.session_state.show_all_data = False
 
+
 # =========================
-# CONTROLS
+# 🎮 CONTROLS
 # =========================
+st.markdown("---")
+st.subheader("Live Simulation")
+
 col1, col2 = st.columns(2)
 
-if col1.button("🟢 Start Simulation"):
+if col1.button("Start Simulation"):
     st.session_state.running = True
 
-if col2.button("🔴 Stop Simulation"):
+if col2.button("Stop Simulation"):
     st.session_state.running = False
 
-# Speed control
-speed = st.slider("⏱️ Simulation Speed (seconds)", 0.1, 2.0, 0.5)
+speed = st.slider("Speed", 0.1, 2.0, 0.5)
 
-# Persistent toggle (IMPORTANT)
-st.session_state.show_all_data = st.checkbox(
-    "📊 Show full simulation data",
-    value=st.session_state.show_all_data
-)
 
 # =========================
-# PLACEHOLDERS
+# 📊 PLACEHOLDERS
 # =========================
 metric1 = st.empty()
 metric2 = st.empty()
 chart = st.empty()
 table = st.empty()
 
+
 # =========================
-# RUN SIMULATION
+# ▶️ RUNNING MODE
 # =========================
 if st.session_state.running:
 
-    # Generate random traffic
     packets = np.random.randint(100, 5000)
 
-    # Attack logic
     if packets > 4000:
         attack = "DDoS"
-        status = "⚠️ DDoS WARNING"
-        color = "inverse"
+        status = "High Traffic"
     else:
         attack = "Normal"
-        status = "Normal"
-        color = "normal"
+        status = "Stable"
 
-    # Increment time
     st.session_state.tick += 1
 
-    # =========================
-    # METRICS
-    # =========================
-    metric1.metric(
-        "Current Traffic",
-        f"{packets} pkts/s",
-        delta=status,
-        delta_color=color
-    )
+    metric1.metric("Traffic", f"{packets} pkts/s", status)
+    metric2.metric("Status", attack)
 
-    metric2.metric(
-        "System Status",
-        "Under Attack" if attack != "Normal" else "Monitoring Active"
-    )
-
-    # =========================
-    # STORE DATA
-    # =========================
     new_row = pd.DataFrame([{
         "time": st.session_state.tick,
         "flow_packets_per_sec": packets,
@@ -102,55 +112,66 @@ if st.session_state.running:
         new_row
     ]).tail(200).reset_index(drop=True)
 
-    # =========================
-    # GRAPH
-    # =========================
-    df = st.session_state.sim_data.set_index("time")
-    chart.line_chart(df["flow_packets_per_sec"])
+    df_data = st.session_state.sim_data.copy()
 
-    # =========================
+    # SAFE INDEX HANDLING
+    if "time" in df_data.columns:
+        df = df_data.set_index("time")
+    else:
+        df = df_data.reset_index(drop=True)
+
+    # SAFE CHART
+    if "flow_packets_per_sec" in df.columns:
+        chart.line_chart(df["flow_packets_per_sec"])
+    else:
+        st.warning("No traffic column found")
+
     # TABLE
-    # =========================
-    st.caption(f"Showing {len(st.session_state.sim_data)} records")
+    st.session_state.show_all_data = st.checkbox(
+        "Show full data",
+        value=st.session_state.show_all_data
+    )
+
+    st.caption(f"Total records: {len(st.session_state.sim_data)}")
 
     if st.session_state.show_all_data:
-        table.dataframe(
-            st.session_state.sim_data,
-            use_container_width=True,
-            height=400  # enables scrolling
-        )
+        table.dataframe(st.session_state.sim_data, height=400)
     else:
-        table.dataframe(
-            st.session_state.sim_data.tail(10),
-            use_container_width=True,
-            hide_index=True
-        )
+        table.dataframe(st.session_state.sim_data.tail(10))
 
-    # Loop control
     time.sleep(speed)
     st.rerun()
 
+
 # =========================
-# WHEN STOPPED
+# ⏹️ STOPPED MODE
 # =========================
 else:
-    st.info("Click Start Simulation")
+    st.info("Simulation stopped")
 
     if not st.session_state.sim_data.empty:
-        df = st.session_state.sim_data.set_index("time")
-        chart.line_chart(df["flow_packets_per_sec"])
 
-        st.caption(f"Showing {len(st.session_state.sim_data)} records")
+        df_data = st.session_state.sim_data.copy()
+
+        if "time" in df_data.columns:
+            df = df_data.set_index("time")
+        else:
+            df = df_data.reset_index(drop=True)
+
+        if "flow_packets_per_sec" in df.columns:
+            chart.line_chart(df["flow_packets_per_sec"])
+        else:
+            st.warning("No traffic column found")
+
+        # TABLE
+        st.session_state.show_all_data = st.checkbox(
+            "Show full data",
+            value=st.session_state.show_all_data
+        )
+
+        st.caption(f"Total records: {len(st.session_state.sim_data)}")
 
         if st.session_state.show_all_data:
-            table.dataframe(
-                st.session_state.sim_data,
-                use_container_width=True,
-                height=400
-            )
+            table.dataframe(st.session_state.sim_data, height=400)
         else:
-            table.dataframe(
-                st.session_state.sim_data.tail(10),
-                use_container_width=True,
-                hide_index=True
-            )
+            table.dataframe(st.session_state.sim_data.tail(10))

@@ -1,59 +1,37 @@
-# pages/3_Query.py
 import streamlit as st
-import pandas as pd
-from db import fetch_data
-from query_mapper import map_natural_language_to_sql
 
-st.title("💬 Ask ShadowTrace")
-st.markdown("Use natural language to query the database. (NLP → SQL)")
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-st.info("💡 **Try asking:** 'Show most common attacks', 'Find high traffic flows', or 'Show dos attacks'.")
+from ui import apply_ui
+apply_ui()
 
-user_query = st.text_input("What would you like to know about the network?")
+from db import fetch_data   
+from query_mapper import map_natural_language_to_sql  
+st.title("Query Engine")
+
+use_sim = st.checkbox("Use uploaded / simulation data")
+
+user_query = st.text_input("Ask your question")
 
 if st.button("Search"):
-    if user_query:
 
+    if use_sim and 'sim_data' in st.session_state:
+        df = st.session_state.sim_data
+
+        st.info("Using uploaded/simulation data")
+
+        # BASIC NLP FILTER
+        if "ddos" in user_query.lower():
+            df = df[df["attack_name"].str.contains("ddos", case=False)]
+
+        if "high traffic" in user_query.lower():
+            df = df[df["flow_packets_per_sec"] > 4000]
+
+        st.dataframe(df)
+
+    else:
         sql = map_natural_language_to_sql(user_query)
+        df = fetch_data(sql)
 
-        # 🔥 HANDLE COLUMN EXPLANATION FIRST
-        if isinstance(sql, str) and sql.startswith("EXPLAIN_COLUMN::"):
-            col = sql.split("::")[1]
-
-            from query_mapper import column_descriptions
-
-            st.success(f"🧠 {col}: {column_descriptions.get(col, 'No description available')}")
-            st.stop()   # VERY IMPORTANT
-
-        # ✅ NORMAL SQL FLOW
-        if sql:
-            try:
-                use_sim = st.checkbox("⚡ Query Simulation Data")
-                if use_sim and 'sim_data' in st.session_state:
-                    df = st.session_state.sim_data
-                else:
-                    df = fetch_data(sql)
-
-                if df is not None and not df.empty:
-
-                    st.code(f"Generated SQL:\n{sql}", language="sql")
-                    st.dataframe(df, use_container_width=True)
-
-                    # 🧠 Smart explanation
-                    if "count" in df.columns:
-                        st.success("🧠 Insight: This shows attack frequency distribution.")
-
-                    elif "total_attacks" in df.columns:
-                        st.success(f"🧠 Total attacks detected: {df.iloc[0,0]}")
-
-                    else:
-                        st.success("🧠 Showing relevant network data.")
-
-                else:
-                    st.warning("No results found.")
-
-            except Exception as e:
-                st.error(f"Database error: {e}")
-
-        else:
-            st.warning("Sorry, I don't understand that query yet.")
+        st.dataframe(df)

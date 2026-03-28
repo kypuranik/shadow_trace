@@ -1,28 +1,54 @@
-# app.py
 import streamlit as st
+from ui import apply_ui
 
+
+# =========================
+# CONFIG
+# =========================
 st.set_page_config(
-    page_title="ShadowTrace | Traffic Analysis",
-    page_icon="🛡️",
+    page_title="ShadowTrace",
     layout="wide"
 )
 
-st.title("🛡️ ShadowTrace")
-st.subheader("Intelligent Network Traffic Analysis System")
+# APPLY GLOBAL UI
+apply_ui()
+
+# =========================
+# FIX SIDEBAR (IMPORTANT)
+# =========================
+st.markdown("""
+<style>
+section[data-testid="stSidebar"] {
+    background: rgba(15, 23, 42, 0.95) !important;
+    color: #e2e8f0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# =========================
+# MAIN PAGE
+# =========================
+st.markdown("<h1 style='color:white;'>ShadowTrace</h1>", unsafe_allow_html=True)
+st.caption("Network Traffic Intelligence Platform")
 
 st.markdown("""
-Welcome to **ShadowTrace** — a next-generation database management and traffic analysis tool.
+<div class="glass">
+<h3>Overview</h3>
+<p>
+ShadowTrace provides a unified interface to analyze network traffic,
+detect anomalies, and simulate attack scenarios.
+</p>
+</div>
+""", unsafe_allow_html=True)
 
-### 🧠 System Capabilities:
-👈 **Use the sidebar to navigate through the modules:**
+# =========================
+# STATUS
+# =========================
+st.markdown("### System Status")
 
-*   📊 **Dashboard:** Technical analysis, JOIN queries, and traffic filtering.
-*   📖 **Learn:** Layman-friendly explanations of cyber attacks and prevention.
-*   💬 **Query (NLP):** Ask questions in plain English and get database results.
-*   ⚡ **Simulation:** Watch real-time mock traffic flow and attack detection.
+col1, col2, col3 = st.columns(3)
+col1.metric("System", "Operational")
+col2.metric("Detection", "Active")
+col3.metric("Security", "Stable")
 
----
-*Built for robustness. Designed for clarity.*
-""")
-
-st.info("👈 Select a page from the sidebar to begin.")
+st.info("Use the sidebar to navigate modules.")
